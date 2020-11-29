@@ -46,11 +46,11 @@ class Device:
         command_payload.append(Wallpad.add(command_payload))
         return bytearray.fromhex(' '.join(command_payload))
 
-    def get_mqtt_discovery_payload(self):
+    def get_mqtt_discovery_payload(self, attr_name):
         result = {
             '~': '/'.join([ROOT_TOPIC_NAME, self.device_class, self.device_name]),
             'name': self.device_name,
-            'uniq_id': self.device_unique_id,
+            'uniq_id': self.device_unique_id + '_' + attr_name,
         }
         result.update(self.optional_info)
         for status_list in self.__status_messages_map.values():
@@ -88,7 +88,7 @@ class Wallpad:
             if device.mqtt_discovery:
                 for attr_name in device.get_status_attr_list():
                     topic = '/'.join(['homeassistant', device.device_class, device.device_unique_id, attr_name, 'config'])
-                    payload = device.get_mqtt_discovery_payload()
+                    payload = device.get_mqtt_discovery_payload(attr_name)
                     self.mqtt_client.publish(topic, payload, qos = 2, retain = True)
 
     def add_device(self, device_name, device_id, device_subid, device_class, child_device = [], mqtt_discovery = True, optional_info = {}):
