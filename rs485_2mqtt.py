@@ -49,7 +49,7 @@ class Device:
     def get_mqtt_discovery_payload(self, attr_name):
         result = {
             '~': '/'.join([ROOT_TOPIC_NAME, self.device_class, self.device_name]),
-            'name': self.device_name,
+            'name': self.device_name + ' ' + attr_name,
             'uniq_id': self.device_unique_id + '_' + attr_name,
         }
         result.update(self.optional_info)
@@ -126,13 +126,16 @@ class Wallpad:
         if msg.topic == ROOT_TOPIC_NAME + '/dev/raw': # ew11이 MQTT에 rs485 패킷을 publish하는 경우
             for payload_raw_bytes in msg.payload.split(b'\xf7')[1:]: # payload 내에 여러 메시지가 있는 경우, \f7 disappear as delimiter here
                 payload_hexstring = 'f7' + payload_raw_bytes.hex() # 'f7361f810f000001000017179817981717969896de22'
-                if self.is_valid(payload_hexstring):
-                    payload_dict = re.match(r'f7(?P<device_id>0e|12|32|33|36)(?P<device_subid>[0-9a-f]{2})(?P<message_flag>[0-9a-f]{2})(?:[0-9a-f]{2})(?P<data>[0-9a-f]*)(?P<xor>[0-9a-f]{2})(?P<add>[0-9a-f]{2})', payload_hexstring).groupdict()
+                try:
+                    if self.is_valid(payload_hexstring):
+                        payload_dict = re.match(r'f7(?P<device_id>0e|12|32|33|36)(?P<device_subid>[0-9a-f]{2})(?P<message_flag>[0-9a-f]{2})(?:[0-9a-f]{2})(?P<data>[0-9a-f]*)(?P<xor>[0-9a-f]{2})(?P<add>[0-9a-f]{2})', payload_hexstring).groupdict()
 
-                    for topic, value in self.get_device(device_id = payload_dict['device_id'], device_subid = payload_dict['device_subid']).parse_payload(payload_dict).items():
-                        client.publish(topic, value, qos = 1, retain = False)
-                else:
-                    continue
+                        for topic, value in self.get_device(device_id = payload_dict['device_id'], device_subid = payload_dict['device_subid']).parse_payload(payload_dict).items():
+                            client.publish(topic, value, qos = 1, retain = False)
+                    else:
+                        continue
+                except Exception as e:
+                    client.publish(ROOT_TOPIC_NAME + '/dev/error', payload_hexstring + ' // ' + e, qos = 1, retain = True)
 
         else: # homeassistant에서 명령하여 MQTT topic을 publish하는 경우
             topic_split = msg.topic.split('/') # rs485_2mqtt/light/침실등/power/set
@@ -178,8 +181,8 @@ optional_info = {'optimistic': 'false'}
 거실등2    = wallpad.add_device(device_name = '거실등2', device_id = '0e', device_subid = '12', device_class = 'light', optional_info = optional_info)
 복도등     = wallpad.add_device(device_name = '복도등',  device_id = '0e', device_subid = '13', device_class = 'light', optional_info = optional_info)
 침실등     = wallpad.add_device(device_name = '침실등',  device_id = '0e', device_subid = '21', device_class = 'light', optional_info = optional_info)
-거실등전체 = wallpad.add_device(device_name = '거실등전체', device_id = '0e', device_subid = '1f', device_class = 'light', mqtt_discovery = False, child_device = [거실등1, 거실등2, 복도등])
-침실등전체 = wallpad.add_device(device_name = '침실등전체', device_id = '0e', device_subid = '2f', device_class = 'light', mqtt_discovery = False, child_device = [침실등])
+거실등전체 = wallpad.add_device(device_name = '거실등 전체', device_id = '0e', device_subid = '1f', device_class = 'light', mqtt_discovery = False, child_device = [거실등1, 거실등2, 복도등])
+침실등전체 = wallpad.add_device(device_name = '침실등 전체', device_id = '0e', device_subid = '2f', device_class = 'light', mqtt_discovery = False, child_device = [침실등])
 
 거실등전체.register_status(message_flag = '01', attr_name = 'availability', topic_class ='availability_topic', regex = r'()', process_func = lambda v: 'online')
 침실등전체.register_status(message_flag = '01', attr_name = 'availability', topic_class ='availability_topic', regex = r'()', process_func = lambda v: 'online')
@@ -201,12 +204,12 @@ optional_info = {'optimistic': 'false'}
 
 ### 난방 ###
 optional_info = {'modes': ['off', 'heat'], 'temp_step': 0.5, 'precision': 0.5, 'min_temp': 5.0, 'max_temp': 40.0, 'send_if_off': 'false'}
-거실난방 =  wallpad.add_device(device_name = '거실난방',   device_id = '36', device_subid = '11', device_class = 'climate', optional_info = optional_info)
-침실난방 =  wallpad.add_device(device_name = '침실난방',   device_id = '36', device_subid = '12', device_class = 'climate', optional_info = optional_info)
-서재난방 =  wallpad.add_device(device_name = '서재난방',   device_id = '36', device_subid = '14', device_class = 'climate', optional_info = optional_info)
-동굴난방 =  wallpad.add_device(device_name = '동굴난방',   device_id = '36', device_subid = '13', device_class = 'climate', optional_info = optional_info)
-알파룸난방= wallpad.add_device(device_name = '알파룸난방', device_id = '36', device_subid = '15', device_class = 'climate', optional_info = optional_info)
-난방전체 =  wallpad.add_device(device_name = '난방전체',   device_id = '36', device_subid = '1f', device_class = 'climate', mqtt_discovery = False, child_device = [거실난방, 침실난방, 서재난방, 동굴난방, 알파룸난방])
+거실난방 =  wallpad.add_device(device_name = '거실 난방',   device_id = '36', device_subid = '11', device_class = 'climate', optional_info = optional_info)
+침실난방 =  wallpad.add_device(device_name = '침실 난방',   device_id = '36', device_subid = '12', device_class = 'climate', optional_info = optional_info)
+서재난방 =  wallpad.add_device(device_name = '서재 난방',   device_id = '36', device_subid = '14', device_class = 'climate', optional_info = optional_info)
+동굴난방 =  wallpad.add_device(device_name = '동굴 난방',   device_id = '36', device_subid = '13', device_class = 'climate', optional_info = optional_info)
+알파룸난방= wallpad.add_device(device_name = '알파룸 난방', device_id = '36', device_subid = '15', device_class = 'climate', optional_info = optional_info)
+난방전체 =  wallpad.add_device(device_name = '난방 전체',   device_id = '36', device_subid = '1f', device_class = 'climate', mqtt_discovery = False, child_device = [거실난방, 침실난방, 서재난방, 동굴난방, 알파룸난방])
 
 난방전체.register_status(message_flag = '01', attr_name = 'availability', regex = r'()', topic_class ='availability_topic', process_func = lambda v: 'online')
 
