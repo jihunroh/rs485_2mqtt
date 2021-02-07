@@ -1,5 +1,5 @@
 import paho.mqtt.client as mqtt
-import re, inspect, sys
+import re, inspect, sys, asyncio
 from json import dumps as json_dumps
 from functools import reduce
 from collections import defaultdict
@@ -46,11 +46,11 @@ class Device:
         command_payload.append(Wallpad.add(command_payload))
         return bytearray.fromhex(' '.join(command_payload))
 
-    def get_mqtt_discovery_payload(self, attr_name):
+    def get_mqtt_discovery_payload(self):
         result = {
             '~': '/'.join([ROOT_TOPIC_NAME, self.device_class, self.device_name]),
-            'name': self.device_name + ' ' + attr_name,
-            'uniq_id': self.device_unique_id + '_' + attr_name,
+            'name': self.device_name,
+            'uniq_id': self.device_unique_id,
         }
         result.update(self.optional_info)
         for status_list in self.__status_messages_map.values():
@@ -86,10 +86,9 @@ class Wallpad:
     def register_mqtt_discovery(self):
         for device in self._device_list:
             if device.mqtt_discovery:
-                for attr_name in device.get_status_attr_list():
-                    topic = '/'.join(['homeassistant', device.device_class, device.device_unique_id, attr_name, 'config'])
-                    payload = device.get_mqtt_discovery_payload(attr_name)
-                    self.mqtt_client.publish(topic, payload, qos = 2, retain = True)
+                topic = '/'.join([HOMEASSISTANT_ROOT_TOPIC_NAME, device.device_class, device.device_unique_id, 'config'])
+                payload = device.get_mqtt_discovery_payload()
+                self.mqtt_client.publish(topic, payload, qos = 2, retain = True)
 
     def add_device(self, device_name, device_id, device_subid, device_class, child_device = [], mqtt_discovery = True, optional_info = {}):
         device = Device(device_name, device_id, device_subid, device_class, child_device, mqtt_discovery, optional_info)
@@ -135,7 +134,7 @@ class Wallpad:
                     else:
                         continue
                 except Exception as e:
-                    client.publish(ROOT_TOPIC_NAME + '/dev/error', payload_hexstring + ' // ' + e, qos = 1, retain = True)
+                    client.publish(ROOT_TOPIC_NAME + '/dev/error', payload_hexstring, qos = 1, retain = True)
 
         else: # homeassistant에서 명령하여 MQTT topic을 publish하는 경우
             topic_split = msg.topic.split('/') # rs485_2mqtt/light/침실등/power/set
@@ -145,7 +144,7 @@ class Wallpad:
 
 MQTT_SERVER = '192.168.1.1'
 ROOT_TOPIC_NAME = 'rs485_2mqtt'
-
+HOMEASSISTANT_ROOT_TOPIC_NAME = 'homeassistant'
 wallpad = Wallpad()
 
 packet_2_payload_speed = {'00': 'off', '01': 'low', '02': 'medium', '03': 'high'}
