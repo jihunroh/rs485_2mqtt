@@ -1,9 +1,8 @@
 import paho.mqtt.client as mqtt
-import re, inspect, sys, asyncio
+import re
 from json import dumps as json_dumps
 from functools import reduce
 from collections import defaultdict
-from pprint import pprint
 
 class Device:
     def __init__(self, device_name, device_id, device_subid, device_class, child_device, mqtt_discovery, optional_info):
@@ -189,7 +188,7 @@ optional_info = {'optimistic': 'false'}
 거실등1.register_status(message_flag = '81', attr_name = 'power', topic_class ='state_topic', regex = r'00(0[01])0[01]0[01]', process_func = lambda v: 'ON' if v == '01' else 'OFF')
 거실등2.register_status(message_flag = '81', attr_name = 'power', topic_class ='state_topic', regex = r'000[01](0[01])0[01]', process_func = lambda v: 'ON' if v == '01' else 'OFF')
 복도등.register_status( message_flag = '81', attr_name = 'power', topic_class ='state_topic', regex = r'000[01]0[01](0[01])', process_func = lambda v: 'ON' if v == '01' else 'OFF')
-침실등.register_status( message_flag = '81', attr_name = 'power', topic_class ='state_topic', regex = r'000([01])', process_func = lambda v: 'ON' if v == '01' else 'OFF')
+침실등.register_status( message_flag = '81', attr_name = 'power', topic_class ='state_topic', regex = r'00(0[01])', process_func = lambda v: 'ON' if v == '01' else 'OFF')
 
 거실등1.register_status(message_flag = 'c1', attr_name = 'power', topic_class ='state_topic', regex = r'00(0[01])', process_func = lambda v: 'ON' if v == '01' else 'OFF')
 거실등2.register_status(message_flag = 'c1', attr_name = 'power', topic_class ='state_topic', regex = r'00(0[01])', process_func = lambda v: 'ON' if v == '01' else 'OFF')
