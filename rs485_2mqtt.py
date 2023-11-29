@@ -4,6 +4,9 @@ from json import dumps as json_dumps
 from functools import reduce
 from collections import defaultdict
 
+MQTT_USERNAME = 'SHOULD_BE_CHANGED'
+MQTT_PASSWORD = 'SHOULD_BE_CHANGED'
+
 class Device:
     def __init__(self, device_name, device_id, device_subid, device_class, child_device, mqtt_discovery, optional_info):
         self.device_name = device_name
@@ -73,8 +76,9 @@ class Wallpad:
 
     def __init__(self):
         self.mqtt_client = mqtt.Client()
-        self.mqtt_client.on_message = self.on_raw_message
-
+        self.mqtt_client.on_message    = self.on_raw_message
+        self.mqtt_client.on_disconnect = self.on_disconnect
+        self.mqtt_client.username_pw_set(username=MQTT_USERNAME, password=MQTT_PASSWORD)
         self.mqtt_client.connect(MQTT_SERVER, 1883)
 
     def listen(self):
@@ -140,6 +144,9 @@ class Wallpad:
             device = self.get_device(device_name = topic_split[2])
             payload = device.get_command_payload_byte(topic_split[3], msg.payload.decode())
             client.publish(ROOT_TOPIC_NAME + '/dev/command', payload, qos = 2, retain = False)
+
+    def on_disconnect(self, client, userdata, rc):
+        raise ConnectionError
 
 MQTT_SERVER = '192.168.1.1'
 ROOT_TOPIC_NAME = 'rs485_2mqtt'
